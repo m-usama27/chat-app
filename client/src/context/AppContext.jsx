@@ -55,8 +55,21 @@ function appReducer(state, action) {
         ...state,
         activeConversation: action.payload,
       };
-    case "SET_MESSAGES":
+    case "SET_MESSAGES": {
+      // Avoid unnecessary re-renders when polling returns the same messages
+      const prev = state.messages;
+      const next = action.payload;
+      const sameLength = prev.length === next.length;
+      const sameLastId =
+        prev.length > 0 &&
+        next.length > 0 &&
+        String(prev[prev.length - 1]?._id) ===
+          String(next[next.length - 1]?._id);
+      if (sameLength && (prev.length === 0 || sameLastId)) {
+        return state;
+      }
       return { ...state, messages: action.payload };
+    }
     case "ADD_MESSAGE":
       return {
         ...state,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, MoreVertical } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,9 @@ export default function ChatWindow({ onBack }) {
   } = useApp();
 
   const messagesEndRef = useRef(null);
-  const scrollRef = useRef(null);
+  const viewportRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const prevMessageCountRef = useRef(0);
 
   // Get current user ID (handles both 'id' and '_id' from different sources)
   const currentUserId = user?.id || user?._id;
@@ -27,6 +28,9 @@ export default function ChatWindow({ onBack }) {
   // Load messages when conversation changes
   useEffect(() => {
     if (activeConversation?._id) {
+      // Reset scroll state for the new conversation
+      prevMessageCountRef.current = 0;
+      setIsAtBottom(true);
       loadMessages(activeConversation._id);
     }
   }, [activeConversation?._id, loadMessages]);
@@ -42,12 +46,36 @@ export default function ChatWindow({ onBack }) {
     return () => clearInterval(interval);
   }, [activeConversation?._id, loadMessages]);
 
-  // Auto-scroll to bottom on new messages (only if user is at bottom)
+  // Track whether the user is scrolled to the bottom of the chat
+  const handleScroll = useCallback((event) => {
+    const target = event.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    // Consider "at bottom" if within 50px of the bottom edge
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    setIsAtBottom(distanceFromBottom < 50);
+  }, []);
+
+  // Auto-scroll to bottom only when genuinely new messages arrive AND user is at bottom
   useEffect(() => {
-    if (isAtBottom) {
+    const hasNewMessages = messages.length > prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+
+    if (isAtBottom && hasNewMessages) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isAtBottom]);
+
+  // When the user sends a message, force-scroll to bottom
+  const handleSend = useCallback(
+    async (content) => {
+      const result = await sendMessage(activeConversation._id, content);
+      if (result.success) {
+        setIsAtBottom(true);
+      }
+      return result;
+    },
+    [activeConversation?._id, sendMessage]
+  );
 
   if (!activeConversation) {
     return (
@@ -117,7 +145,11 @@ export default function ChatWindow({ onBack }) {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 scrollbar-thin" ref={scrollRef}>
+      <ScrollArea
+        className="flex-1 scrollbar-thin"
+        viewportRef={viewportRef}
+        onViewportScroll={handleScroll}
+      >
         <div className="p-4 space-y-1">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -205,9 +237,7 @@ export default function ChatWindow({ onBack }) {
       </ScrollArea>
 
       {/* Message Input */}
-      <MessageInput
-        onSend={(content) => sendMessage(activeConversation._id, content)}
-      />
+      <MessageInput onSend={handleSend} />
     </div>
   );
 }
