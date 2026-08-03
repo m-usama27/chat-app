@@ -157,13 +157,49 @@ This will start:
 
 ## Environment Variables
 
+### Server (`server/.env`)
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `5000` |
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/mern-chat` |
+| `MONGODB_URI` | MongoDB Atlas connection string | - |
 | `JWT_SECRET` | JWT signing secret | - |
-| `CLIENT_URL` | CORS origin URL | `http://localhost:5173` |
+| `CLIENT_URL` | CORS origins (comma-separated) | `http://localhost:5173` |
+| `NGROK_URL` | ngrok tunnel URL (reference) | - |
 | `NODE_ENV` | Environment | `development` |
+
+### Client (`client/.env`)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_URL` | Backend API URL (ngrok URL) | `/api` |
+
+## Deployment
+
+### Frontend (Vercel)
+
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com) and import your repository
+3. Set the root directory to `client`
+4. Add environment variable: `VITE_API_URL` = your ngrok URL + `/api`
+5. Deploy
+
+### Backend (Local PC + ngrok)
+
+1. Set your MongoDB Atlas connection string in `server/.env`
+2. Add your Vercel frontend URL to `CLIENT_URL` in `server/.env` (comma-separated)
+3. Start the server: `npm run dev:server`
+4. Expose with ngrok: `ngrok http 5000`
+5. Use the ngrok URL in `client/.env` as `VITE_API_URL`
+
+### CORS Configuration
+
+The server accepts a comma-separated list of origins in `CLIENT_URL`:
+```
+CLIENT_URL=http://localhost:5173,https://your-app.vercel.app
+```
+
+The ngrok-skip-browser-warning header is automatically sent with all API requests to bypass ngrok's interstitial page.
 
 ## License
 
