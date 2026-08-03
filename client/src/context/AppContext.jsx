@@ -72,7 +72,7 @@ function appReducer(state, action) {
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Check for stored token on mount
+  // Check for stored token on mount and fetch fresh user data
   useEffect(() => {
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
@@ -80,10 +80,26 @@ export function AppProvider({ children }) {
     if (token && storedUser) {
       try {
         const user = JSON.parse(storedUser);
+        // Immediately set the user from storage to avoid loading flash
         dispatch({
           type: "AUTH_SUCCESS",
           payload: { user, token },
         });
+
+        // Fetch fresh user data from server to update status
+        authAPI
+          .getMe()
+          .then((response) => {
+            const freshUser = response.user;
+            localStorage.setItem("user", JSON.stringify(freshUser));
+            dispatch({
+              type: "AUTH_SUCCESS",
+              payload: { user: freshUser, token },
+            });
+          })
+          .catch(() => {
+            // If getMe fails, keep the stored user
+          });
       } catch {
         localStorage.removeItem("token");
         localStorage.removeItem("user");

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Loader2, Camera, Save } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Loader2, Camera, Save, Upload } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { userAPI } from "@/services/api";
 import {
@@ -19,6 +19,45 @@ import { Badge } from "@/components/ui/badge";
 import UserAvatar from "@/components/UserAvatar";
 
 /**
+ * Resize an image file to max dimensions and convert to base64
+ */
+const resizeImage = (file, maxSize = 200) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
  * Modal dialog for viewing and editing user profile
  */
 export default function ProfileModal({ open, onOpenChange }) {
@@ -30,6 +69,7 @@ export default function ProfileModal({ open, onOpenChange }) {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Sync form data when user data changes or modal opens
   useEffect(() => {
@@ -45,6 +85,38 @@ export default function ProfileModal({ open, onOpenChange }) {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size must be less than 5MB");
+      return;
+    }
+
+    try {
+      setError(null);
+      const base64 = await resizeImage(file, 200);
+      setFormData((prev) => ({ ...prev, avatar: base64 }));
+    } catch {
+      setError("Failed to process image. Please try a different file.");
+    }
+
+    // Reset file input
+    e.target.value = "";
   };
 
   const handleSave = async (e) => {
@@ -79,9 +151,22 @@ export default function ProfileModal({ open, onOpenChange }) {
         <div className="flex flex-col items-center py-4">
           <div className="relative">
             <UserAvatar user={{ ...user, ...formData }} size="xl" />
-            <button className="absolute bottom-0 right-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground ring-2 ring-background hover:bg-primary/90 transition-colors">
+            <button
+              type="button"
+              onClick={handleAvatarClick}
+              className="absolute bottom-0 right-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground ring-2 ring-background hover:bg-primary/90 transition-colors"
+              title="Change profile picture"
+            >
               <Camera className="w-4 h-4" />
             </button>
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
           </div>
           <p className="mt-3 text-lg font-semibold">
             {formData.displayName || user.username}
@@ -127,16 +212,33 @@ export default function ProfileModal({ open, onOpenChange }) {
             </p>
           </div>
 
+          {/* Avatar URL field (alternative to file upload) */}
           <div className="space-y-2">
-            <Label htmlFor="profile-avatar">Avatar URL (optional)</Label>
-            <Input
-              id="profile-avatar"
-              name="avatar"
-              type="url"
-              placeholder="https://example.com/avatar.jpg"
-              value={formData.avatar}
-              onChange={handleChange}
-            />
+            <Label htmlFor="profile-avatar">Profile Picture</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="profile-avatar"
+                name="avatar"
+                type="text"
+                placeholder="Image URL or upload above"
+                value={formData.avatar}
+                onChange={handleChange}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleAvatarClick}
+                className="shrink-0"
+                title="Upload image"
+              >
+                <Upload className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Click the camera icon or upload button to choose an image
+            </p>
           </div>
 
           {/* Account Info */}

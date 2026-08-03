@@ -41,6 +41,7 @@ export const register = async (req, res) => {
       password,
       displayName: displayName || username,
       bio: bio || "",
+      status: "online",
     });
 
     const token = generateToken(user._id);
