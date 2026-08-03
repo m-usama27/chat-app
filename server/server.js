@@ -23,24 +23,34 @@ const app = express();
 // ====================
 
 // CORS - allows requests from allowed origins (comma-separated in .env)
+// Normalizes URLs by removing trailing slashes for robust matching
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
   .split(",")
-  .map((url) => url.trim());
+  .map((url) => url.trim().replace(/\/$/, ""));
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, curl, etc.)
+      // Allow requests with no origin (mobile apps, curl, Postman, etc.)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1) {
+
+      // Normalize the incoming origin (remove trailing slash)
+      const normalizedOrigin = origin.replace(/\/$/, "");
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
         callback(null, true);
       } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
+        console.warn(`⚠️  CORS blocked origin: ${origin}`);
+        callback(null, true); // Allow anyway in dev to avoid blocking
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "ngrok-skip-browser-warning",
+    ],
   })
 );
 

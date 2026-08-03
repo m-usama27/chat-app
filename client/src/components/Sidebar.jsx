@@ -10,7 +10,7 @@ import UserAvatar from "@/components/UserAvatar";
 import ChatList from "@/components/ChatList";
 import { cn, formatTime } from "@/lib/utils";
 
-export default function Sidebar({ onOpenProfile }) {
+export default function Sidebar({ onOpenProfile, onSelectConversation }) {
   const {
     user,
     conversations,
@@ -69,6 +69,8 @@ export default function Sidebar({ onOpenProfile }) {
     setSearchQuery("");
     setSearchResults([]);
     setShowAllUsers(false);
+    // Switch to chat view on mobile
+    if (onSelectConversation) onSelectConversation();
   };
 
   const displayUsers = isSearching

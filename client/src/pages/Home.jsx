@@ -30,7 +30,10 @@ export default function Home() {
           mobileView === "sidebar" ? "block" : "hidden md:block"
         )}
       >
-        <Sidebar onOpenProfile={handleOpenProfile} />
+        <Sidebar
+          onOpenProfile={handleOpenProfile}
+          onSelectConversation={handleSelectConversation}
+        />
       </div>
 
       {/* Chat Window - hidden on mobile when in sidebar view */}
