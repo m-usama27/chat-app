@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Search, Settings, LogOut, MessageSquare, X, Users } from "lucide-react";
+import { Search, Settings, LogOut, MessageSquare, X, Users, Moon, Sun } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useTheme } from "@/hooks/useTheme";
 import { userAPI } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,8 @@ export default function Sidebar({ onOpenProfile, onSelectConversation }) {
     selectConversation,
     logout,
   } = useApp();
+
+  const { isDark, toggleTheme } = useTheme();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -93,6 +96,19 @@ export default function Sidebar({ onOpenProfile, onSelectConversation }) {
           </div>
           <h1 className="text-lg font-bold">MernChat</h1>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={toggleTheme}
+          title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4" />
+          ) : (
+            <Moon className="w-4 h-4" />
+          )}
+        </Button>
       </div>
 
       {/* Current User */}

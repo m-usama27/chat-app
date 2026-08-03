@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
@@ -13,13 +13,48 @@ export default function Home() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileView, setMobileView] = useState("sidebar"); // "sidebar" | "chat"
 
-  const handleOpenProfile = () => setProfileOpen(true);
-  const handleBack = () => setMobileView("sidebar");
+  // Handle browser back button / mobile back gesture — navigate within the app
+  // instead of leaving. When back is pressed, close the profile modal (if open)
+  // and switch back to the sidebar view (if in chat view).
+  useEffect(() => {
+    const handlePopState = () => {
+      setProfileOpen(false);
+      setMobileView("sidebar");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
-  // Switch to chat view when conversation is selected (mobile)
-  const handleSelectConversation = () => {
+  // Open profile modal and push a history state so back closes the modal
+  const handleOpenProfile = useCallback(() => {
+    setProfileOpen(true);
+    window.history.pushState({ view: "profile" }, "");
+  }, []);
+
+  // In-app back button — use history.back() so the popstate handler fires
+  const handleBack = useCallback(() => {
+    window.history.back();
+  }, []);
+
+  // Switch to chat view when conversation is selected (mobile) and push
+  // a history state so the browser back button returns to the sidebar
+  const handleSelectConversation = useCallback(() => {
     setMobileView("chat");
-  };
+    window.history.pushState({ view: "chat" }, "");
+  }, []);
+
+  // Sync history when the profile modal is closed via the X button / overlay
+  const handleProfileOpenChange = useCallback(
+    (open) => {
+      if (!open && profileOpen) {
+        // Modal was open and is now closing via UI — go back in history
+        // so the pushed state is popped and popstate fires
+        window.history.back();
+      }
+      setProfileOpen(open);
+    },
+    [profileOpen]
+  );
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -47,7 +82,7 @@ export default function Home() {
       </div>
 
       {/* Profile Modal */}
-      <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
+      <ProfileModal open={profileOpen} onOpenChange={handleProfileOpenChange} />
     </div>
   );
 }
