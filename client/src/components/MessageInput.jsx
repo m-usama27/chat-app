@@ -2,13 +2,21 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { emitTyping, emitStopTyping } from "@/services/socket";
 
 /**
- * Message input component with auto-resizing textarea
+ * Message input component with auto-resizing textarea and typing indicators.
+ *
+ * Emits "typing" / "stop_typing" socket events so the other participant
+ * sees a live typing indicator. The "typing" event is sent once when the
+ * user starts typing, and "stop_typing" is sent after 2s of inactivity or
+ * when the message is submitted.
  */
-export default function MessageInput({ onSend }) {
+export default function MessageInput({ onSend, recipientId }) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -19,10 +27,52 @@ export default function MessageInput({ onSend }) {
     }
   }, [message]);
 
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Emit typing indicator when the user types
+  const handleChange = (e) => {
+    setMessage(e.target.value);
+
+    if (!recipientId) return;
+
+    // Emit "typing" only once when the user starts typing
+    if (!isTypingRef.current && e.target.value.trim()) {
+      isTypingRef.current = true;
+      emitTyping(recipientId);
+    }
+
+    // Clear and reset the stop-typing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // After 2 seconds of no typing, emit "stop_typing"
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      emitStopTyping(recipientId);
+    }, 2000);
+  };
+
   const handleSubmit = (e) => {
     e?.preventDefault();
     const trimmed = message.trim();
     if (!trimmed) return;
+
+    // Stop typing indicator when the message is sent
+    if (recipientId && isTypingRef.current) {
+      isTypingRef.current = false;
+      emitStopTyping(recipientId);
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
 
     onSend(trimmed);
     setMessage("");
@@ -43,7 +93,7 @@ export default function MessageInput({ onSend }) {
           <textarea
             ref={textareaRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             rows={1}

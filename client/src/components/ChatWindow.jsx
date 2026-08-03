@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, MoreVertical } from "lucide-react";
+import { ArrowLeft, MoreVertical, Loader2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import UserAvatar from "@/components/UserAvatar";
 import MessageInput from "@/components/MessageInput";
+import { joinRoom, leaveRoom } from "@/services/socket";
 import { cn, formatTime, formatDate } from "@/lib/utils";
 
 export default function ChatWindow({ onBack }) {
@@ -13,17 +14,25 @@ export default function ChatWindow({ onBack }) {
     messages,
     loadMessages,
     sendMessage,
+    socketConnected,
+    typingUsers,
   } = useApp();
 
   const messagesEndRef = useRef(null);
   const viewportRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const prevMessageCountRef = useRef(0);
+  const prevConversationRef = useRef(null);
 
   // Get current user ID (handles both 'id' and '_id' from different sources)
   const currentUserId = user?.id || user?._id;
 
-  // Load messages when conversation changes
+  // Check if the other participant is currently typing
+  const isTyping = activeConversation
+    ? !!typingUsers[String(activeConversation._id)]
+    : false;
+
+  // Load messages when conversation changes (initial REST fetch — no polling)
   useEffect(() => {
     if (activeConversation?._id) {
       // Reset scroll state for the new conversation
@@ -33,16 +42,31 @@ export default function ChatWindow({ onBack }) {
     }
   }, [activeConversation?._id, loadMessages]);
 
-  // Poll for new messages every 3 seconds (real-time updates)
+  // Join/leave conversation room via Socket.IO when the active chat changes
   useEffect(() => {
-    if (!activeConversation?._id) return;
+    const currentId = activeConversation?._id;
+    const prevId = prevConversationRef.current;
 
-    const interval = setInterval(() => {
-      loadMessages(activeConversation._id);
-    }, 3000);
+    // Leave the previous conversation room (if any)
+    if (prevId && prevId !== currentId) {
+      leaveRoom(prevId);
+    }
 
-    return () => clearInterval(interval);
-  }, [activeConversation?._id, loadMessages]);
+    // Join the new conversation room (if any)
+    if (currentId) {
+      joinRoom(currentId);
+    }
+
+    // Update ref for next comparison
+    prevConversationRef.current = currentId;
+
+    // Cleanup: leave the room when the component unmounts
+    return () => {
+      if (currentId) {
+        leaveRoom(currentId);
+      }
+    };
+  }, [activeConversation?._id]);
 
   // Track whether the user is scrolled to the bottom of the chat
   const handleScroll = useCallback((event) => {
@@ -116,6 +140,14 @@ export default function ChatWindow({ onBack }) {
 
   return (
     <div className="flex flex-col h-full bg-background">
+      {/* Reconnecting banner — shown when the socket is disconnected */}
+      {!socketConnected && (
+        <div className="flex items-center justify-center gap-2 py-1.5 px-4 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs font-medium border-b border-yellow-500/20">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          Reconnecting...
+        </div>
+      )}
+
       {/* Chat Header */}
       <div className="flex items-center gap-3 p-3 border-b bg-card">
         <Button
@@ -132,9 +164,13 @@ export default function ChatWindow({ onBack }) {
             {activeConversation.displayName || activeConversation.username}
           </h2>
           <p className="text-xs text-muted-foreground">
-            {activeConversation.status === "online"
-              ? "Active now"
-              : `Last seen ${formatTime(activeConversation.lastSeen)}`}
+            {isTyping ? (
+              <span className="text-primary">typing...</span>
+            ) : activeConversation.status === "online" ? (
+              "Active now"
+            ) : (
+              `Last seen ${formatTime(activeConversation.lastSeen)}`
+            )}
           </p>
         </div>
         <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -235,7 +271,10 @@ export default function ChatWindow({ onBack }) {
       </div>
 
       {/* Message Input */}
-      <MessageInput onSend={handleSend} />
+      <MessageInput
+        onSend={handleSend}
+        recipientId={activeConversation._id}
+      />
     </div>
   );
 }

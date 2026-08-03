@@ -51,17 +51,34 @@ export const sendMessage = async (req, res) => {
  * @desc    Get conversation between two users
  * @route   GET /api/messages/:userId
  * @access  Private
+ *
+ * Supports an optional `after` query parameter (a message _id) to fetch
+ * only messages newer than that id. This is used by the client on socket
+ * reconnection to retrieve any messages missed while disconnected.
+ *
+ * Example: GET /api/messages/:userId?after=64a1b2c3d4e5f6a7b8c9d0e1
  */
 export const getMessages = async (req, res) => {
   try {
     const otherUserId = req.params.userId;
+    const { after } = req.query;
 
-    const messages = await Message.find({
+    // Base query: all messages between the two users
+    const query = {
       $or: [
         { sender: req.user._id, recipient: otherUserId },
         { sender: otherUserId, recipient: req.user._id },
       ],
-    })
+    };
+
+    // If `after` is provided, only return messages with a greater _id
+    // (MongoDB ObjectIds are chronologically sortable, so $gt on _id
+    // effectively means "created after").
+    if (after) {
+      query._id = { $gt: after };
+    }
+
+    const messages = await Message.find(query)
       .populate("sender", "username displayName avatar status")
       .populate("recipient", "username displayName avatar status")
       .sort({ createdAt: 1 });

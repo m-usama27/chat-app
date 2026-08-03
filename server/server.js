@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
@@ -8,6 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
+import { initSocketServer } from "./socket/socketHandler.js";
 
 // Load environment variables
 dotenv.config();
@@ -92,9 +94,16 @@ app.use(errorHandler);
 // ====================
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+// Create a single HTTP server from the Express app and attach Socket.IO
+// to it — Socket.IO shares the same HTTP server (no separate server).
+const httpServer = http.createServer(app);
+const io = initSocketServer(httpServer, allowedOrigins);
+
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 API available at http://localhost:${PORT}/api`);
+  console.log(`🔌 Socket.IO ready on the same port`);
 });
 
+export { app, httpServer, io };
 export default app;

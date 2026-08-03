@@ -75,7 +75,10 @@ export const userAPI = {
 export const messageAPI = {
   send: (recipientId, content) =>
     api.post("/messages", { recipientId, content }),
-  getMessages: (userId) => api.get(`/messages/${userId}`),
+  // Pass `after` (a message _id) to fetch only messages newer than that id.
+  // Used on socket reconnection to retrieve missed messages.
+  getMessages: (userId, after) =>
+    api.get(`/messages/${userId}`, { params: after ? { after } : {} }),
   getConversations: () => api.get("/messages/conversations"),
   markAsRead: (userId) => api.put(`/messages/${userId}/read`),
 };
