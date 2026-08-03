@@ -48,8 +48,21 @@ function appReducer(state, action) {
         ...state,
         user: { ...state.user, ...action.payload },
       };
-    case "SET_CONVERSATIONS":
-      return { ...state, conversations: action.payload };
+    case "SET_CONVERSATIONS": {
+      // Refresh activeConversation with updated data (e.g., online status) if it exists
+      const activeConv = state.activeConversation
+        ? action.payload.find(
+            (c) => String(c.user?._id) === String(state.activeConversation._id)
+          )
+        : null;
+      return {
+        ...state,
+        conversations: action.payload,
+        activeConversation: activeConv
+          ? activeConv.user
+          : state.activeConversation,
+      };
+    }
     case "SET_ACTIVE_CONVERSATION":
       return {
         ...state,
@@ -121,6 +134,27 @@ export function AppProvider({ children }) {
     } else {
       dispatch({ type: "SET_LOADING", payload: false });
     }
+  }, []);
+
+  // Set status to offline when the browser/tab is closing
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "/api";
+      // Use fetch with keepalive to ensure the request outlives the page
+      fetch(`${apiUrl}/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        keepalive: true,
+      }).catch(() => {});
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
   // Register

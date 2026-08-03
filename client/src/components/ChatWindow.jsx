@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, MoreVertical } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import UserAvatar from "@/components/UserAvatar";
 import MessageInput from "@/components/MessageInput";
 import { cn, formatTime, formatDate } from "@/lib/utils";
@@ -144,11 +142,11 @@ export default function ChatWindow({ onBack }) {
         </Button>
       </div>
 
-      {/* Messages */}
-      <ScrollArea
-        className="flex-1 scrollbar-thin"
-        viewportRef={viewportRef}
-        onViewportScroll={handleScroll}
+      {/* Messages - native scrollable div for reliable touch scrolling on mobile */}
+      <div
+        ref={viewportRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin"
       >
         <div className="p-4 space-y-1">
           {messages.length === 0 ? (
@@ -234,7 +232,7 @@ export default function ChatWindow({ onBack }) {
           )}
           <div ref={messagesEndRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Message Input */}
       <MessageInput onSend={handleSend} />

@@ -1,5 +1,12 @@
 import User from "../models/User.js";
 
+// Helper: determine effective online status from lastSeen (within 60s = online)
+const getEffectiveStatus = (user) => {
+  if (!user || !user.lastSeen) return "offline";
+  const diff = Date.now() - new Date(user.lastSeen).getTime();
+  return diff < 60000 ? "online" : "offline";
+};
+
 /**
  * @desc    Get all users (for starting new conversations)
  * @route   GET /api/users
@@ -11,10 +18,17 @@ export const getAllUsers = async (req, res) => {
       .select("-password")
       .sort({ username: 1 });
 
+    // Apply effective status based on lastSeen
+    const usersWithStatus = users.map((u) => {
+      const userObj = u.toObject();
+      userObj.status = getEffectiveStatus(userObj);
+      return userObj;
+    });
+
     res.json({
       success: true,
-      count: users.length,
-      users,
+      count: usersWithStatus.length,
+      users: usersWithStatus,
     });
   } catch (error) {
     res.status(500).json({
@@ -123,10 +137,17 @@ export const searchUsers = async (req, res) => {
       .select("-password")
       .limit(20);
 
+    // Apply effective status based on lastSeen
+    const usersWithStatus = users.map((u) => {
+      const userObj = u.toObject();
+      userObj.status = getEffectiveStatus(userObj);
+      return userObj;
+    });
+
     res.json({
       success: true,
-      count: users.length,
-      users,
+      count: usersWithStatus.length,
+      users: usersWithStatus,
     });
   } catch (error) {
     res.status(500).json({

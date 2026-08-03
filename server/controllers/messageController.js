@@ -97,6 +97,13 @@ export const getConversations = async (req, res) => {
     // Build a map of unique conversations with last message
     const conversationsMap = new Map();
 
+    // Helper: determine effective online status from lastSeen (within 60s = online)
+    const getEffectiveStatus = (user) => {
+      if (!user || !user.lastSeen) return "offline";
+      const diff = Date.now() - new Date(user.lastSeen).getTime();
+      return diff < 60000 ? "online" : "offline";
+    };
+
     messages.forEach((msg) => {
       const otherUser =
         msg.sender._id.toString() === req.user._id.toString()
@@ -106,8 +113,15 @@ export const getConversations = async (req, res) => {
       const otherUserId = otherUser._id.toString();
 
       if (!conversationsMap.has(otherUserId)) {
+        // Convert to plain object and apply effective status
+        const userObj =
+          otherUser.toObject !== undefined
+            ? otherUser.toObject()
+            : { ...otherUser };
+        userObj.status = getEffectiveStatus(userObj);
+
         conversationsMap.set(otherUserId, {
-          user: otherUser,
+          user: userObj,
           lastMessage: msg,
         });
       }

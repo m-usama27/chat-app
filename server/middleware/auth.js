@@ -36,6 +36,19 @@ export const protect = async (req, res, next) => {
       });
     }
 
+    // Throttled update of online status and lastSeen (at most every 30s)
+    // This keeps the user's status fresh while they're actively using the app
+    const now = Date.now();
+    const lastSeenMs = user.lastSeen ? new Date(user.lastSeen).getTime() : 0;
+    if (now - lastSeenMs > 30000) {
+      await User.findByIdAndUpdate(user._id, {
+        status: "online",
+        lastSeen: now,
+      });
+      user.status = "online";
+      user.lastSeen = now;
+    }
+
     req.user = user;
     next();
   } catch (error) {
