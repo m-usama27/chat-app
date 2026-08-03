@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, MoreVertical } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,10 @@ export default function ChatWindow({ onBack }) {
 
   const messagesEndRef = useRef(null);
   const scrollRef = useRef(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  // Get current user ID (handles both 'id' and '_id' from different sources)
+  const currentUserId = user?.id || user?._id;
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -27,10 +31,23 @@ export default function ChatWindow({ onBack }) {
     }
   }, [activeConversation?._id, loadMessages]);
 
-  // Auto-scroll to bottom on new messages
+  // Poll for new messages every 3 seconds (real-time updates)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!activeConversation?._id) return;
+
+    const interval = setInterval(() => {
+      loadMessages(activeConversation._id);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [activeConversation?._id, loadMessages]);
+
+  // Auto-scroll to bottom on new messages (only if user is at bottom)
+  useEffect(() => {
+    if (isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, isAtBottom]);
 
   if (!activeConversation) {
     return (
@@ -128,10 +145,14 @@ export default function ChatWindow({ onBack }) {
 
                 {/* Messages */}
                 {msgs.map((msg, index) => {
-                  const isOwn = msg.sender._id === user._id;
+                  const isOwn =
+                    String(msg.sender._id) === String(currentUserId);
                   const prevMsg = msgs[index - 1];
                   const showAvatar =
-                    !isOwn && (!prevMsg || prevMsg.sender._id !== msg.sender._id);
+                    !isOwn &&
+                    (!prevMsg ||
+                      String(prevMsg.sender._id) !==
+                        String(msg.sender._id));
 
                   return (
                     <div

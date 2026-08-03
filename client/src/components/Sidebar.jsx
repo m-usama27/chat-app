@@ -26,9 +26,13 @@ export default function Sidebar({ onOpenProfile, onSelectConversation }) {
   const [showAllUsers, setShowAllUsers] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
 
-  // Load conversations on mount
+  // Load conversations on mount and poll every 5 seconds
   useEffect(() => {
     loadConversations();
+    const interval = setInterval(() => {
+      loadConversations();
+    }, 5000);
+    return () => clearInterval(interval);
   }, [loadConversations]);
 
   // Search users

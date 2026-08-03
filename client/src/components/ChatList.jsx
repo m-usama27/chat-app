@@ -30,7 +30,8 @@ export default function ChatList({ conversations, activeConversation, onSelect }
       {conversations.map((conv) => {
         const isActive = activeConversation?._id === conv.user._id;
         const lastMsg = conv.lastMessage;
-        const isOwnMessage = lastMsg.sender._id === conv.user._id;
+        const isFromPartner =
+          String(lastMsg.sender._id) === String(conv.user._id);
 
         return (
           <button
@@ -52,7 +53,7 @@ export default function ChatList({ conversations, activeConversation, onSelect }
                 </span>
               </div>
               <p className="text-xs text-muted-foreground truncate">
-                {isOwnMessage ? "" : "You: "}
+                {isFromPartner ? "" : "You: "}
                 {lastMsg.content}
               </p>
             </div>
