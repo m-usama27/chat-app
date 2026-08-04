@@ -24,6 +24,9 @@
     --input: 220 13% 91%;
     --ring: 21.7 65.6% 55.5%;
     --radius: 0.75rem;
+    --font-sans: Geist Mono, ui-monospace, monospace;
+    --font-serif: serif;
+    --font-mono: JetBrains Mono, monospace;
   }
 
   .dark {
