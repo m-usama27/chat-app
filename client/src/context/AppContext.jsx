@@ -449,12 +449,6 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Select conversation
-  const selectConversation = useCallback((user) => {
-    dispatch({ type: "SET_ACTIVE_CONVERSATION", payload: user });
-    dispatch({ type: "SET_MESSAGES", payload: [] });
-  }, []);
-
   // Load messages (initial REST call when opening a chat — no polling)
   const loadMessages = useCallback(async (userId) => {
     try {
@@ -466,6 +460,20 @@ export function AppProvider({ children }) {
       console.error("Failed to load messages:", error.message);
     }
   }, []);
+
+  // Select conversation — also loads messages directly so that re-selecting
+  // the same conversation (e.g. going back to sidebar then clicking the same
+  // chat) still triggers a fresh message fetch.
+  const selectConversation = useCallback(
+    (user) => {
+      dispatch({ type: "SET_ACTIVE_CONVERSATION", payload: user });
+      dispatch({ type: "SET_MESSAGES", payload: [] });
+      if (user?._id) {
+        loadMessages(user._id);
+      }
+    },
+    [loadMessages]
+  );
 
   // Load missed messages (used on socket reconnect)
   const loadMissedMessages = useCallback(async (userId, after) => {

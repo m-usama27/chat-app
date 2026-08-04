@@ -12,7 +12,6 @@ export default function ChatWindow({ onBack }) {
     user,
     activeConversation,
     messages,
-    loadMessages,
     sendMessage,
     socketConnected,
     typingUsers,
@@ -32,15 +31,14 @@ export default function ChatWindow({ onBack }) {
     ? !!typingUsers[String(activeConversation._id)]
     : false;
 
-  // Load messages when conversation changes (initial REST fetch — no polling)
+  // Reset scroll state when conversation changes
+  // (messages are loaded directly in selectConversation in AppContext)
   useEffect(() => {
     if (activeConversation?._id) {
-      // Reset scroll state for the new conversation
       prevMessageCountRef.current = 0;
       setIsAtBottom(true);
-      loadMessages(activeConversation._id);
     }
-  }, [activeConversation?._id, loadMessages]);
+  }, [activeConversation?._id]);
 
   // Join/leave conversation room via Socket.IO when the active chat changes
   useEffect(() => {
